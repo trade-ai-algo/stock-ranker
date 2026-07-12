@@ -5,8 +5,9 @@ data, asks Claude to judge sentiment/materiality, fuses that with
 quantitative features, and outputs a ranked daily list — plus a ledger that
 scores every past pick against a benchmark so you know whether the system is
 actually any good. Runs two independent "books" through the identical
-pipeline, each its own tab on the dashboard: **Stocks & ETFs** (EU + US) and
-**Crypto**. Add more asset classes by adding another entry under
+pipeline, each its own tab on the dashboard: **Stocks & ETFs** (EU + US,
+ranked independently per market so one doesn't crowd out the other) and
+**Crypto** (top 5). Add more asset classes/markets by extending
 `config.yaml → books`.
 
 **This produces research suggestions, not investment advice, and it does
@@ -46,6 +47,12 @@ Design principles baked in:
 - **The ledger is the product.** Every pick is logged with its price and
   auto-evaluated at 1d/5d vs the benchmark. Trust the summary table, not
   the daily list.
+- **The €1000 example is a fixed rule, not a strategy.** Each pick is sized
+  by its confidence tier (`simulation.stake_pct_by_confidence`), capped so a
+  day's picks never deploy more than `simulation.max_total_deployed_pct` of
+  the pool. It shows the LLM's own close-move guess in euros next to the
+  ticker's *actual* historical daily volatility in euros — on purpose, so
+  the point estimate is visibly dwarfed by real day-to-day noise.
 
 ## Setup
 
@@ -88,11 +95,17 @@ cd data && python -m http.server 8080     # quick and dirty
 
 - `config.yaml → ranking.weights` — refit these only after the ledger has
   30+ evaluations; earlier tuning is curve-fitting to noise.
-- Universe: add/remove tickers freely (yfinance suffixes: `.DE` Xetra,
-  `.PA` Paris, `.AS` Amsterdam, `.SW` SIX). Verify each ETF ticker resolves
-  in yfinance before relying on it.
+- `ranking.top_n` applies **per market group** (e.g. up to 5 US + 5 EU stock
+  picks), not to the book as a whole — each `universe.<Market>` entry gets
+  its own independently ranked, independently filtered list.
+- Universe: add/remove tickers freely under the right market (yfinance
+  suffixes: `.DE` Xetra, `.PA` Paris, `.AS` Amsterdam, `.SW` SIX, `-USD` for
+  crypto). Verify each ticker resolves in yfinance before relying on it.
 - News: add sector-specific RSS feeds for better coverage of EU names —
   the default feeds skew US.
+- `config.yaml → simulation` — tune the confidence → stake-% tiers or the
+  deployment ceiling; both only change the illustrative €-example, never
+  the ranking itself.
 
 ## Honest limitations
 

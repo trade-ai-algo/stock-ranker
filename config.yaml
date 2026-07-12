@@ -1,8 +1,9 @@
 # ── Daily Ranker configuration ──────────────────────────────────────────
 # Two independent "books" run through the identical pipeline (news -> quant
-# -> LLM -> rank -> ledger -> dashboard tab): stocks and crypto. Add more by
-# adding another entry under `books` — everything else (llm/ranking/features
-# settings below) is shared.
+# -> LLM -> rank -> ledger -> dashboard tab): stocks and crypto. Each book's
+# universe is nested by market (e.g. US / EU) so the ranker produces its own
+# top_n suggestions PER MARKET instead of one market crowding out the other
+# in a single global list. Add more books/markets by extending `books`.
 
 llm:
   # claude-sonnet-5: best fit for this job — strong structured-JSON extraction and
@@ -14,7 +15,7 @@ llm:
   # API key read from env var ANTHROPIC_API_KEY — never hardcode it here.
 
 ranking:
-  top_n: 5
+  top_n: 5                   # cap PER MARKET GROUP (e.g. up to 5 US + 5 EU stock picks)
   # Weights for fusing signals. Tune after you have ledger data.
   weights:
     news_score: 0.40         # LLM materiality x sentiment
@@ -31,48 +32,78 @@ features:
   vol_window: 20
   rsi_window: 14
 
+# Illustrative-only €-stake sizing example shown on the dashboard. A fixed,
+# transparent rule — not a trading system, doesn't feed back into ranking.
+# See src/position_sizer.py.
+simulation:
+  capital_eur: 1000
+  stake_pct_by_confidence:   # % of the pool suggested per pick, by confidence tier
+    Low: 0.03
+    Medium: 0.08
+    High: 0.15
+  max_total_deployed_pct: 0.50   # never suggest deploying more than this share of
+                                  # the pool in one day; scales every stake down
+                                  # pro-rata if a day's picks would exceed it
+
 books:
   stocks:
     label: "Stocks & ETFs"
     asset_label: "equities and ETFs"
     catalyst_options: "earnings_beat|guidance|mna|regulatory|macro|analyst|product|other"
     universe:
-      stocks:
-        # ── US large caps ──
-        - AAPL
-        - MSFT
-        - NVDA
-        - AMZN
-        - GOOGL
-        - META
-        - TSLA
-        - JPM
-        - XOM
-        - UNH
-        - AVGO
-        - LLY
-        # ── EU large caps (Xetra / Euronext / SIX via yfinance suffixes) ──
-        - SAP.DE       # SAP
-        - SIE.DE       # Siemens
-        - ALV.DE       # Allianz
-        - DTE.DE       # Deutsche Telekom
-        - AIR.PA       # Airbus
-        - MC.PA        # LVMH
-        - TTE.PA       # TotalEnergies
-        - ASML.AS      # ASML
-        - NESN.SW      # Nestlé
-        - NOVN.SW      # Novartis
-      etfs:
-        # ── US ──
-        - SPY      # S&P 500
-        - QQQ      # Nasdaq 100
-        - IWM      # Russell 2000
-        - TLT      # Long treasuries
-        - GLD      # Gold
-        # ── EU (UCITS, Xetra-listed) ──
-        - EXS1.DE  # iShares Core DAX
-        - EXW1.DE  # iShares EURO STOXX 50 UCITS ETF (Xetra)
-        - IS3N.DE  # iShares MSCI EM IMI
+      US:
+        stocks:
+          - AAPL
+          - MSFT
+          - NVDA
+          - AMZN
+          - GOOGL
+          - META
+          - TSLA
+          - JPM
+          - XOM
+          - UNH
+          - AVGO
+          - LLY
+          - V
+          - MA
+          - HD
+          - PG
+          - KO
+          - CRM
+          - NFLX
+          - DIS
+        etfs:
+          - SPY      # S&P 500
+          - QQQ      # Nasdaq 100
+          - IWM      # Russell 2000
+          - TLT      # Long treasuries
+          - GLD      # Gold
+          - XLF      # Financials sector
+          - XLE      # Energy sector
+      EU:
+        stocks:
+          # ── Xetra / Euronext / SIX via yfinance suffixes ──
+          - SAP.DE       # SAP
+          - SIE.DE       # Siemens
+          - ALV.DE       # Allianz
+          - DTE.DE       # Deutsche Telekom
+          - BMW.DE       # BMW
+          - VOW3.DE      # Volkswagen
+          - BAYN.DE      # Bayer
+          - ADS.DE       # Adidas
+          - AIR.PA       # Airbus
+          - MC.PA        # LVMH
+          - TTE.PA       # TotalEnergies
+          - OR.PA        # L'Oréal
+          - SAN.PA       # Sanofi
+          - ASML.AS      # ASML
+          - NESN.SW      # Nestlé
+          - NOVN.SW      # Novartis
+        etfs:
+          - EXS1.DE  # iShares Core DAX
+          - EXW1.DE  # iShares EURO STOXX 50 UCITS ETF (Xetra)
+          - IS3N.DE  # iShares MSCI EM IMI
     benchmark: SPY
     news:
       rss_feeds:
@@ -92,21 +123,22 @@ books:
     asset_label: "cryptocurrencies"
     catalyst_options: "protocol_upgrade|hack_exploit|regulatory|listing_delisting|macro|whale_activity|adoption|other"
     universe:
-      coins:
-        - BTC-USD
-        - ETH-USD
-        - SOL-USD
-        - BNB-USD
-        - XRP-USD
-        - ADA-USD
-        - DOGE-USD
-        - AVAX-USD
-        - LINK-USD
-        - DOT-USD
-        - LTC-USD
-      etfs:
-        - IBIT     # iShares Bitcoin Trust
-        - ETHA     # iShares Ethereum Trust
+      Global:
+        coins:
+          - BTC-USD
+          - ETH-USD
+          - SOL-USD
+          - BNB-USD
+          - XRP-USD
+          - ADA-USD
+          - DOGE-USD
+          - AVAX-USD
+          - LINK-USD
+          - DOT-USD
+          - LTC-USD
+        etfs:
+          - IBIT     # iShares Bitcoin Trust
+          - ETHA     # iShares Ethereum Trust
     benchmark: BTC-USD
     news:
       rss_feeds:

@@ -5,7 +5,8 @@ Usage:
     python main.py --eval     # only evaluate matured past picks + refresh dashboard
 
 Runs the identical pipeline once per "book" defined in config.yaml (stocks,
-crypto, ...) and renders every book into its own tab on one dashboard page.
+crypto, ...), each book's universe nested by market (e.g. US / EU), and
+renders every book into its own tab on one dashboard page.
 
 Cron example (07:00 UTC = 9AM Berlin time, before EU open; US premarket news included):
     0  7  * * 1-5  cd /opt/daily-ranker && /usr/bin/python3 main.py >> data/run.log 2>&1
@@ -25,7 +26,8 @@ from src.ledger import Ledger
 from src.llm_analyzer import analyze_news
 from src.market_data import fetch_features
 from src.news_fetcher import fetch_headlines
-from src.ranker import rank
+from src.position_sizer import size_book
+from src.ranker import rank_by_group
 
 
 def load_config() -> dict:
@@ -39,9 +41,12 @@ def run_book(name: str, book_cfg: dict, cfg: dict, eval_only: bool) -> dict:
     n = ledger.evaluate_due(book_cfg["ledger"]["eval_horizons_days"], book_cfg["benchmark"])
     print(f"[{name}][eval] evaluated {n} matured picks")
 
-    picks = []
+    groups: dict[str, list] = {m: [] for m in book_cfg["universe"]}
     if not eval_only:
-        tickers = [t for group in book_cfg["universe"].values() for t in group]
+        tickers = [t for market in book_cfg["universe"].values() for grp in market.values() for t in grp]
+        ticker_market = {
+            t: market for market, groups_ in book_cfg["universe"].items() for grp in groups_.values() for t in grp
+        }
 
         print(f"[{name} 1/4] fetching news…")
         headlines = fetch_headlines(
@@ -73,28 +78,48 @@ def run_book(name: str, book_cfg: dict, cfg: dict, eval_only: bool) -> dict:
         print(f"      {len(llm_scores)} tickers flagged by news")
 
         print(f"[{name} 4/4] ranking…")
-        picks = rank(
+        groups = rank_by_group(
             llm_scores,
             features,
+            ticker_market,
             cfg["ranking"]["weights"],
             cfg["ranking"]["top_n"],
             cfg["ranking"]["allow_no_pick"],
             cfg["ranking"].get("min_score", 0.10),
         )
 
-        if picks:
+        any_picks = False
+        for market, picks in groups.items():
+            if not picks:
+                continue
+            any_picks = True
             ledger.log_picks(date.today(), picks)
             _append_csv(book_cfg["output"]["csv_path"], picks)
+            print(f"  [{market}]")
             for i, p in enumerate(picks, 1):
                 print(
-                    f"  {i}. {p.ticker:8s} score={p.total_score:+.3f} conf={p.confidence_label:6s} "
+                    f"    {i}. {p.ticker:8s} score={p.total_score:+.3f} conf={p.confidence_label:6s} "
                     f"est_open={p.est_open_move_pct:+.1f}% est_close={p.est_close_move_pct:+.1f}% "
                     f"[{p.catalyst}] {p.rationale}"
                 )
-        else:
+        if not any_picks:
             print(f"  [{name}] no compelling picks today (allow_no_pick=true) — sitting out")
 
-    return {"label": book_cfg["label"], "picks": picks, "ledger": ledger}
+    all_picks = [p for picks in groups.values() for p in picks]
+    stake_examples, stake_summary = size_book(
+        all_picks,
+        cfg["simulation"]["capital_eur"],
+        cfg["simulation"]["stake_pct_by_confidence"],
+        cfg["simulation"]["max_total_deployed_pct"],
+    )
+
+    return {
+        "label": book_cfg["label"],
+        "groups": groups,
+        "ledger": ledger,
+        "stake_examples": stake_examples,
+        "stake_summary": stake_summary,
+    }
 
 
 def main() -> None:
@@ -103,7 +128,7 @@ def main() -> None:
 
     books = {name: run_book(name, book_cfg, cfg, eval_only) for name, book_cfg in cfg["books"].items()}
 
-    render(books, "data/index.html")
+    render(books, cfg["simulation"]["capital_eur"], "data/index.html")
     print("[done] dashboard written to data/index.html")
 
 

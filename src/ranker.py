@@ -1,7 +1,8 @@
 """Fuse LLM news scores with quantitative features into a final ranking.
 
 Deterministic and auditable: given the same inputs, same output.
-The LLM only supplies news_score components; everything else is math.
+The LLM only supplies news_score/confidence/estimate components; everything
+else — including position in the ranking — is math.
 """
 from __future__ import annotations
 
@@ -31,14 +32,20 @@ class RankedPick:
     components: dict = field(default_factory=dict)
 
 
-def rank(
+def rank_by_group(
     llm_scores: list[dict],
     features: dict[str, TickerFeatures],
+    ticker_group: dict[str, str],
     weights: dict[str, float],
     top_n: int,
     allow_no_pick: bool,
     min_score: float = 0.10,
-) -> list[RankedPick]:
+) -> dict[str, list[RankedPick]]:
+    """Score every eligible ticker once, then rank and cap independently per
+    group (e.g. per market) so each group gets its own top_n suggestions
+    instead of one group crowding out another in a single global list.
+    Every group key present in `ticker_group` is guaranteed a (possibly
+    empty) entry in the result."""
     news_by_ticker = {d["ticker"]: d for d in llm_scores if d.get("ticker") in features}
 
     picks: list[RankedPick] = []
@@ -118,10 +125,15 @@ def rank(
             )
         )
 
-    picks.sort(key=lambda p: p.total_score, reverse=True)
+    grouped: dict[str, list[RankedPick]] = {g: [] for g in dict.fromkeys(ticker_group.values())}
+    for p in picks:
+        grouped.setdefault(ticker_group.get(p.ticker, "other"), []).append(p)
 
-    if allow_no_pick:
-        # Only surface picks with a meaningfully positive fused score.
-        picks = [p for p in picks if p.total_score > min_score]
+    for g, group_picks in grouped.items():
+        group_picks.sort(key=lambda p: p.total_score, reverse=True)
+        if allow_no_pick:
+            # Only surface picks with a meaningfully positive fused score.
+            group_picks = [p for p in group_picks if p.total_score > min_score]
+        grouped[g] = group_picks[:top_n]
 
-    return picks[:top_n]
+    return grouped
