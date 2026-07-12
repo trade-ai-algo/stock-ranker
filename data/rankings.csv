@@ -4,3 +4,4 @@ date,rank,ticker,score,catalyst,rationale,risk,close,confidence_label,confidence
 2026-07-12,2,IWM,0.0734,macro,Small caps typically underperform during geopolitical risk-off episodes and oil price spikes.,Domestic-focused small caps may be less sensitive to Middle East conflict than expected.,295.99,Low,0.294,-0.8,-0.5
 2026-07-12,1,QQQ,0.0715,macro,Risk-off sentiment from Iran conflict could pressure high-beta tech/growth names.,AI-driven momentum may override macro risk-off concerns.,725.51,Low,0.25,-0.6,-0.9
 2026-07-12,1,QQQ,0.0645,macro,Geopolitical escalation adds risk-off pressure to tech-heavy indices already showing negative gap.,Tech strength and AI momentum outweigh macro risk-off sentiment.,725.51,Low,0.225,-0.4,-0.5
+2026-07-12,1,QQQ,0.0895,macro,Tech-heavy index could see mild risk-off drag from escalating Mideast conflict headlines.,AI-driven momentum in mega-cap tech may overwhelm geopolitical risk-off flows.,725.51,Low,0.25,-0.3,-0.4
