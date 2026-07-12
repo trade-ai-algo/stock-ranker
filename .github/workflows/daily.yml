@@ -1,0 +1,67 @@
+name: daily-ranker
+
+on:
+  schedule:
+    # GitHub cron is UTC. Berlin is UTC+2 in summer, UTC+1 in winter.
+    # 05:30 UTC = 07:30 Berlin (summer) — morning ranking run.
+    - cron: "30 5 * * 1-5"
+    # 20:00 UTC = 22:00 Berlin (summer) — evening evaluation run.
+    - cron: "0 20 * * 1-5"
+  workflow_dispatch: {}        # manual trigger button in the Actions tab
+
+permissions:
+  contents: write              # to commit data/ back to the repo
+  pages: write
+  id-token: write
+
+concurrency:
+  group: daily-ranker
+  cancel-in-progress: false
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - run: pip install -r requirements.txt
+
+      - name: Decide run mode (morning = full, evening = eval only)
+        id: mode
+        run: |
+          HOUR=$(date -u +%H)
+          if [ "$HOUR" -ge 12 ]; then echo "flag=--eval" >> "$GITHUB_OUTPUT";
+          else echo "flag=" >> "$GITHUB_OUTPUT"; fi
+
+      - name: Run ranker
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: python main.py ${{ steps.mode.outputs.flag }}
+
+      - name: Commit updated data back to repo
+        run: |
+          git config user.name "daily-ranker-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add data/
+          git diff --cached --quiet || git commit -m "data: run $(date -u +%F_%H%M)"
+          git push
+
+      - name: Upload dashboard for Pages
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: data
+
+  deploy-pages:
+    needs: run
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

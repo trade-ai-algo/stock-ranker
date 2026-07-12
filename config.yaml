@@ -1,0 +1,84 @@
+# ── Daily Ranker configuration ──────────────────────────────────────────
+# Universe: liquid US large caps + ETFs. Swap for DAX tickers if preferred
+# (yfinance supports e.g. SAP.DE, SIE.DE, EXS1.DE).
+
+universe:
+  stocks:
+    # ── US large caps ──
+    - AAPL
+    - MSFT
+    - NVDA
+    - AMZN
+    - GOOGL
+    - META
+    - TSLA
+    - JPM
+    - XOM
+    - UNH
+    - AVGO
+    - LLY
+    # ── EU large caps (Xetra / Euronext / SIX via yfinance suffixes) ──
+    - SAP.DE       # SAP
+    - SIE.DE       # Siemens
+    - ALV.DE       # Allianz
+    - DTE.DE       # Deutsche Telekom
+    - AIR.PA       # Airbus
+    - MC.PA        # LVMH
+    - TTE.PA       # TotalEnergies
+    - ASML.AS      # ASML
+    - NESN.SW      # Nestlé
+    - NOVN.SW      # Novartis
+  etfs:
+    # ── US ──
+    - SPY      # S&P 500
+    - QQQ      # Nasdaq 100
+    - IWM      # Russell 2000
+    - TLT      # Long treasuries
+    - GLD      # Gold
+    # ── EU (UCITS, Xetra-listed) ──
+    - EXS1.DE  # iShares Core DAX
+    - EXW1.DE  # iShares EURO STOXX 50 UCITS ETF (Xetra)
+    - IS3N.DE  # iShares MSCI EM IMI
+
+# Benchmark used by the ledger to judge whether picks add value
+benchmark: SPY
+
+news:
+  # Free RSS feeds. Add/remove as you like.
+  rss_feeds:
+    - https://feeds.content.dowjones.io/public/rss/mw_topstories
+    - https://www.cnbc.com/id/100003114/device/rss/rss.html
+    - https://feeds.a.dj.com/rss/RSSMarketsMain.xml
+  max_headlines: 60          # cap sent to the LLM per run
+  lookback_hours: 20         # only news from the last N hours
+
+llm:
+  model: claude-sonnet-5
+  max_tokens: 3000
+  # API key read from env var ANTHROPIC_API_KEY — never hardcode it here.
+
+features:
+  history_days: 200          # daily bars pulled per ticker
+  momentum_windows: [5, 20, 60]
+  vol_window: 20
+  rsi_window: 14
+
+ranking:
+  top_n: 5
+  # Weights for fusing signals. Tune after you have ledger data.
+  weights:
+    news_score: 0.40         # LLM materiality x sentiment
+    momentum: 0.25           # medium-term trend
+    mean_reversion: 0.15     # short-term overextension penalty
+    gap_penalty: 0.20        # penalize news already priced in at the open
+  allow_no_pick: true        # ranker may output an empty list on weak days
+
+ledger:
+  db_path: data/ledger.sqlite
+  eval_horizons_days: [1, 5]
+
+output:
+  csv_path: data/rankings.csv
+  telegram:
+    enabled: false
+    # If enabled: set TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID env vars.

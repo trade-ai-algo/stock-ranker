@@ -1,0 +1,49 @@
+<!doctype html><html lang='en'><head><meta charset='utf-8'>
+<meta name='viewport' content='width=device-width,initial-scale=1'>
+<title>Daily Ranker</title><style>
+:root {
+  --paper: #f7f6f2; --ink: #1c2430; --muted: #6b7280;
+  --up: #1a7f4e; --down: #b3382c; --line: #d9d6cd; --accent: #274690;
+}
+* { box-sizing: border-box; margin: 0; }
+body {
+  background: var(--paper); color: var(--ink);
+  font: 15px/1.55 Georgia, 'Times New Roman', serif;
+  max-width: 980px; margin: 0 auto; padding: 40px 24px 80px;
+}
+h1 { font-size: 26px; font-weight: 600; letter-spacing: .01em; }
+.sub { color: var(--muted); font-size: 13px; margin: 4px 0 28px; }
+h2 {
+  font-size: 13px; text-transform: uppercase; letter-spacing: .14em;
+  color: var(--accent); margin: 36px 0 10px; font-weight: 600;
+}
+table { width: 100%; border-collapse: collapse; }
+th, td { padding: 9px 10px; text-align: left; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { font-size: 11px; text-transform: uppercase; letter-spacing: .1em; color: var(--muted); font-weight: 600; }
+.num { font-family: 'SF Mono', ui-monospace, Consolas, monospace; font-size: 13px; text-align: right; }
+.pos { color: var(--up); } .neg { color: var(--down); }
+.bar { height: 6px; background: var(--line); border-radius: 3px; overflow: hidden; min-width: 90px; }
+.bar > i { display: block; height: 100%; background: var(--accent); }
+.risk { color: var(--muted); font-size: 13px; font-style: italic; }
+.empty { padding: 28px; text-align: center; color: var(--muted); border: 1px dashed var(--line); }
+.note { margin-top: 40px; padding: 14px 16px; border-left: 3px solid var(--accent);
+        background: #eef0f6; font-size: 13px; color: var(--ink); }
+</style></head><body>
+<h1>Daily Ranker</h1>
+<div class='sub'>Generated 2026-07-12 11:25 &middot; news + quant fused ranking &middot; research suggestions, not investment advice</div>
+
+<h2>Today's ranking</h2>
+<div class='empty'>No compelling picks today — the ranker chose to sit out. That is a feature.</div>
+
+<h2>Scorekeeping — picks vs benchmark</h2>
+<table><tr><th>Horizon</th><th>N</th><th>Avg return</th><th>Avg excess vs benchmark</th><th>Beat rate</th></tr>
+<tr><td colspan='5' class='risk'>No evaluations yet — picks need a few days to mature.</td></tr></table>
+
+<h2>Recent picks (10 days)</h2>
+<table><tr><th>Date</th><th>#</th><th>Ticker</th><th>Score</th><th>Catalyst</th><th>Thesis</th></tr>
+<tr><td class='num'>2026-07-12</td><td class='num'>1</td><td><b>QQQ</b></td><td class='num'>+0.104</td><td>macro</td><td class='risk'>Heightened Middle East conflict risk could weigh on tech-heavy index sentiment via risk-off flows.</td></tr></table>
+
+<div class='note'><b>Read the scorekeeping table first.</b> Until "avg excess vs benchmark"
+is reliably positive across a meaningful sample (30+ evaluations), treat every daily
+ranking as an untested hypothesis. Total picks logged so far: 1.</div>
+</body></html>
