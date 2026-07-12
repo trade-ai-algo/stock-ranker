@@ -41,6 +41,7 @@ th { font-size: 12px; color: var(--muted); font-weight: 600; }
 .badge.High { background: #e3f3ea; color: var(--up); }
 .badge.Medium { background: #fbf1da; color: #8a6d1d; }
 .badge.Low { background: #f7e6e3; color: var(--down); }
+.badge.ipo { background: #eae6fb; color: #4c3d99; margin-left: 6px; }
 .tabs { display: flex; gap: 6px; border-bottom: 1px solid var(--line); margin: 18px 0 4px; }
 .tab-btn {
   font: 600 13px/1 Georgia, serif; letter-spacing: .04em; text-transform: uppercase;
@@ -57,35 +58,19 @@ th { font-size: 12px; color: var(--muted); font-weight: 600; }
 .glossary dd { color: var(--muted); font-size: 14px; margin: 2px 0 0; }
 </style></head><body>
 <h1>Daily Ranker</h1>
-<div class='sub'>Every day, an AI reads the news and looks at price charts to suggest a few stocks,
-ETFs, or cryptocurrencies that might be worth a look — and shows how sure it is. This is not financial
-advice, and nothing here buys or sells anything automatically.</div>
-<div class='sub2'>Last updated 2026-07-12 07:27</div>
+<div class='sub'>Every day, an AI reads the news and searches the web for what's actively being talked
+about — including recent IPOs — to suggest a few stocks, ETFs, or cryptocurrencies that might be worth
+a look, and shows how sure it is. This is not financial advice, and nothing here buys or sells anything
+automatically.</div>
+<div class='sub2'>Last updated 2026-07-12 13:11</div>
 
 <div class='tabs'><button class="tab-btn active" data-tab="stocks">Stocks & ETFs</button><button class="tab-btn" data-tab="crypto">Crypto</button></div>
 <div class="tab-panel active" id="panel-stocks">
 <h2>Today's picks</h2>
-<div class='hint'>"AI's guess" is the AI's own rough estimate, not a promise — it's often wrong. "How sure" tells you how much weight to put on a pick; the &euro;1,000 example below uses it to suggest smaller amounts for less-sure picks.</div><h3 class='market'>US</h3><table><tr><th>#</th><th>Ticker / why it's here</th><th>Strength</th><th>How sure is the AI?</th><th>AI's guess</th><th>Why</th><th>What could go wrong</th></tr><tr><td class='num'>1</td><td><b>QQQ</b><br><span class='risk'>Geopolitical escalation adds risk-off tone that could pressure high-beta tech-heavy index.</span></td><td><div class='bar'><i style='width:100%'></i></div><span class='num'>+0.051</span></td><td><span class='badge Low'>Low</span></td><td class='num'>tomorrow open -0.5%<br>tomorrow close -0.4%</td><td>Big-picture economic or world news</td><td class='risk'>Tech strength (AI trade) could override macro risk-off sentiment.</td></tr></table><h3 class='market'>EU</h3><div class='empty'>Nothing convincing in EU today.</div>
+<div class='empty'>Nothing looked convincing enough today, so no picks are shown. Sitting out on a quiet day is intentional, not a bug.</div>
 
 <h2>The &euro;1,000 example<span class='plain'>What would happen if you tried this with &euro;1,000?</span></h2>
-
-<div class='hint'>Here's a simple example, not a plan: imagine you had &euro;1,000 and tried
-a small amount on each pick above. The less sure the AI is about a pick, the smaller the suggested
-amount — and no matter how many picks show up, this never suggests trying more than half your money in
-one day. The rest stays untouched, as cash.</div>
-<table><tr><th>Pick</th><th>Amount to try</th><th>If the AI's guess comes true</th><th>How much it normally moves in a day anyway</th></tr>
-<tr><td><b>QQQ</b></td><td class='num'>&euro;30.00<div class='risk' style='font-style:normal;'>3.0% of your money</div></td><td class='num neg'>-&euro;0.12</td><td class='num'>&plusmn;&euro;0.57</td></tr></table>
-<div class='note'>
-<p><b>In plain terms:</b> if you'd tried every pick above this way, you'd put in about
-&euro;30.00 in total — 3.0% of your
-&euro;1,000 — leaving &euro;970.00 untouched.</p>
-<p style="margin-top:8px;">If the AI's guesses all came true, that adds up to roughly
--&euro;0.12 by the end of the day. But look at the last column above:
-these prices normally move around by about &plusmn;&euro;0.57 on
-an ordinary day anyway — usually more than the AI's guess. So don't read the AI's guess as a forecast;
-it's one small hypothesis inside a much bigger range of normal, everyday ups and downs.</p>
-</div>
-
+<div class='empty'>No picks today, so there's nothing to try this with.</div>
 
 <h2>How well has this done so far?<span class='plain'>Compared with just holding the normal market</span></h2>
 <table><tr><th>Days later</th><th>Picks checked</th><th>Average result</th><th>Beat the market by</th><th>Won more than the market</th></tr>
@@ -121,11 +106,19 @@ Picks logged so far: 0.</div>
 <summary>New here? Read this first — what everything on this page means</summary>
 <div>
 <b>What is this page?</b>
-<p style="color:var(--muted); font-size:14px; margin-top:4px;">Every day, an AI reads financial news
-and looks at price charts, then a simple, fixed formula (not the AI) turns that into a short list of
-stocks, ETFs, or cryptocurrencies that might be worth a look. Nothing here is bought or sold
-automatically — it's just a suggestion, and it's tracked over time so you can see whether it's actually
-any good.</p>
+<p style="color:var(--muted); font-size:14px; margin-top:4px;">Every day, an AI reads financial news and
+searches the web, then a simple, fixed formula (not the AI) turns that into a short list of stocks,
+ETFs, or cryptocurrencies that might be worth a look. Nothing here is bought or sold automatically —
+it's just a suggestion, and it's tracked over time so you can see whether it's actually any good.</p>
+
+<b>Where do the picks come from?</b>
+<p style="color:var(--muted); font-size:14px; margin-top:4px;">Two places, shown as separate groups when
+there's more than one: a fixed watchlist of well-known names (e.g. "US" / "EU"), and a "Trending" group
+found fresh each day by searching the web for whatever's actually in the news right now — including
+recent IPOs, which get a purple "IPO" tag next to the ticker. Every pick, from either source, has to
+clear the exact same bar before it's shown — Trending isn't a lower-quality shortcut, it's a wider net.
+A brand-new IPO with only a few days of trading is left out entirely: there just isn't enough price
+history yet to say anything meaningful about it.</p>
 
 <b>Today's picks</b>
 <dl>
