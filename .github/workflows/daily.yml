@@ -31,12 +31,16 @@ jobs:
 
       - run: pip install -r requirements.txt
 
-      - name: Decide run mode (morning = full, evening = eval only)
+      - name: Decide run mode (morning = full, evening = eval only, manual = always full)
         id: mode
         run: |
-          HOUR=$(date -u +%H)
-          if [ "$HOUR" -ge 12 ]; then echo "flag=--eval" >> "$GITHUB_OUTPUT";
-          else echo "flag=" >> "$GITHUB_OUTPUT"; fi
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "flag=" >> "$GITHUB_OUTPUT"
+          else
+            HOUR=$(date -u +%H)
+            if [ "$HOUR" -ge 12 ]; then echo "flag=--eval" >> "$GITHUB_OUTPUT";
+            else echo "flag=" >> "$GITHUB_OUTPUT"; fi
+          fi
 
       - name: Run ranker
         env:
