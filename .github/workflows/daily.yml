@@ -3,9 +3,9 @@ name: daily-ranker
 on:
   schedule:
     # GitHub cron is UTC. Berlin is UTC+2 in summer, UTC+1 in winter.
-    # 05:30 UTC = 07:30 Berlin (summer) — morning ranking run.
-    - cron: "30 5 * * 1-5"
-    # 20:00 UTC = 22:00 Berlin (summer) — evening evaluation run.
+    # 07:00 UTC = 09:00 Berlin (summer) / 08:00 Berlin (winter) — morning ranking run.
+    - cron: "0 7 * * 1-5"
+    # 20:00 UTC = 22:00 Berlin (summer) / 21:00 Berlin (winter) — evening evaluation run.
     - cron: "0 20 * * 1-5"
   workflow_dispatch: {}        # manual trigger button in the Actions tab
 

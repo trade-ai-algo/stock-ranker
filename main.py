@@ -75,13 +75,18 @@ def main() -> None:
             cfg["ranking"]["weights"],
             cfg["ranking"]["top_n"],
             cfg["ranking"]["allow_no_pick"],
+            cfg["ranking"].get("min_score", 0.10),
         )
 
         if picks:
             ledger.log_picks(date.today(), picks)
             _append_csv(cfg["output"]["csv_path"], picks)
             for i, p in enumerate(picks, 1):
-                print(f"  {i}. {p.ticker:8s} score={p.total_score:+.3f} [{p.catalyst}] {p.rationale}")
+                print(
+                    f"  {i}. {p.ticker:8s} score={p.total_score:+.3f} conf={p.confidence_label:6s} "
+                    f"est_open={p.est_open_move_pct:+.1f}% est_close={p.est_close_move_pct:+.1f}% "
+                    f"[{p.catalyst}] {p.rationale}"
+                )
         else:
             print("  no compelling picks today (allow_no_pick=true) — sitting out")
 
@@ -95,11 +100,13 @@ def _append_csv(path: str, picks) -> None:
         w = csv.writer(f)
         if not exists:
             w.writerow(
-                ["date", "rank", "ticker", "score", "catalyst", "rationale", "risk", "close"]
+                ["date", "rank", "ticker", "score", "catalyst", "rationale", "risk", "close",
+                 "confidence_label", "confidence_score", "est_open_move_pct", "est_close_move_pct"]
             )
         for i, p in enumerate(picks, 1):
             w.writerow(
-                [date.today(), i, p.ticker, p.total_score, p.catalyst, p.rationale, p.risk, p.last_close]
+                [date.today(), i, p.ticker, p.total_score, p.catalyst, p.rationale, p.risk, p.last_close,
+                 p.confidence_label, p.confidence_score, p.est_open_move_pct, p.est_close_move_pct]
             )
 
 

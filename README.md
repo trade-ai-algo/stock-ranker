@@ -30,7 +30,14 @@ Design principles baked in:
 - **The LLM never ranks.** It only scores news (sentiment × materiality ×
   priced-in). The final ranking is deterministic math you can audit.
 - **"No pick" is a valid output.** Weak days produce an empty list instead
-  of forced noise (`allow_no_pick: true`).
+  of forced noise (`allow_no_pick: true`, bar set by `ranking.min_score`).
+- **Confidence is informational, never a ranking input.** Each pick carries a
+  Low/Medium/High confidence badge fusing the LLM's self-rated certainty with
+  whether news and momentum actually agree and how calm the name is — it
+  doesn't affect `total_score` or sort order.
+- **Open/close move estimates are the LLM's own speculative guess**, grounded
+  in the quant context, shown alongside each pick — a suggestion, not a
+  prediction service.
 - **Priced-in penalty.** The overnight gap is measured and used to punish
   chasing news the market already absorbed — the classic retail trap.
 - **The ledger is the product.** Every pick is logged with its price and

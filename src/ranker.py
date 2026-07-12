@@ -24,6 +24,10 @@ class RankedPick:
     rationale: str
     risk: str
     last_close: float
+    confidence_score: float
+    confidence_label: str
+    est_open_move_pct: float
+    est_close_move_pct: float
     components: dict = field(default_factory=dict)
 
 
@@ -33,6 +37,7 @@ def rank(
     weights: dict[str, float],
     top_n: int,
     allow_no_pick: bool,
+    min_score: float = 0.10,
 ) -> list[RankedPick]:
     news_by_ticker = {d["ticker"]: d for d in llm_scores if d.get("ticker") in features}
 
@@ -73,6 +78,20 @@ def rank(
             + weights["gap_penalty"] * gap_penalty
         )
 
+        # Confidence: fuses the LLM's own stated confidence with two deterministic
+        # checks — do news and momentum actually agree in direction, and is the name
+        # calm enough that a move means something. Informational only; never affects
+        # total_score or ranking order (the LLM still never ranks).
+        llm_confidence = float(np.clip(news.get("confidence", 0.5), 0, 1))
+        agree = (
+            1.0
+            if news_score == 0 or momentum_score == 0
+            else float(np.sign(news_score) == np.sign(momentum_score))
+        )
+        calm = float(np.clip(1 - f.volatility_ann_pct / 60.0, 0, 1))
+        confidence_score = float(np.clip(0.5 * llm_confidence + 0.3 * agree + 0.2 * calm, 0, 1))
+        confidence_label = "High" if confidence_score >= 0.7 else "Medium" if confidence_score >= 0.4 else "Low"
+
         picks.append(
             RankedPick(
                 ticker=ticker,
@@ -85,6 +104,10 @@ def rank(
                 rationale=news.get("rationale", ""),
                 risk=news.get("risk", ""),
                 last_close=f.last_close,
+                confidence_score=round(confidence_score, 3),
+                confidence_label=confidence_label,
+                est_open_move_pct=round(float(np.clip(news.get("est_open_move_pct", 0.0), -10, 10)), 2),
+                est_close_move_pct=round(float(np.clip(news.get("est_close_move_pct", 0.0), -10, 10)), 2),
                 components={
                     "rsi": f.rsi,
                     "mom20d_pct": mom20,
@@ -99,6 +122,6 @@ def rank(
 
     if allow_no_pick:
         # Only surface picks with a meaningfully positive fused score.
-        picks = [p for p in picks if p.total_score > 0.10]
+        picks = [p for p in picks if p.total_score > min_score]
 
     return picks[:top_n]

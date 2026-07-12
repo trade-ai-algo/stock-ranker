@@ -1,2 +1,2 @@
-date,rank,ticker,score,catalyst,rationale,risk,close
-2026-07-12,1,QQQ,0.1045,macro,Heightened Middle East conflict risk could weigh on tech-heavy index sentiment via risk-off flows.,AI-driven tech rally momentum overrides geopolitical concerns.,725.51
+date,rank,ticker,score,catalyst,rationale,risk,close,confidence_label,confidence_score,est_open_move_pct,est_close_move_pct
+2026-07-12,1,QQQ,0.0645,macro,Geopolitical risk-off could weigh on high-beta tech amid Iran conflict escalation.,Tech resilience and AI momentum could offset broader macro risk-off.,725.51,Low,0.225,-0.4,-0.5

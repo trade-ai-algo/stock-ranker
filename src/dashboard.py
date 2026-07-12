@@ -38,6 +38,12 @@ th { font-size: 11px; text-transform: uppercase; letter-spacing: .1em; color: va
 .empty { padding: 28px; text-align: center; color: var(--muted); border: 1px dashed var(--line); }
 .note { margin-top: 40px; padding: 14px 16px; border-left: 3px solid var(--accent);
         background: #eef0f6; font-size: 13px; color: var(--ink); }
+.hint { color: var(--muted); font-size: 13px; font-style: italic; margin-bottom: 10px; }
+.badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 11px;
+         font-weight: 600; text-transform: uppercase; letter-spacing: .04em; white-space: nowrap; }
+.badge.High { background: #e3f3ea; color: var(--up); }
+.badge.Medium { background: #fbf1da; color: #8a6d1d; }
+.badge.Low { background: #f7e6e3; color: var(--down); }
 """
 
 
@@ -51,6 +57,8 @@ def render(picks: list[RankedPick], ledger: Ledger, out_path: str) -> None:
             f"<span class='risk'>{p.rationale}</span></td>"
             f"<td><div class='bar'><i style='width:{abs(p.total_score) / max_score * 100:.0f}%'></i></div>"
             f"<span class='num'>{p.total_score:+.3f}</span></td>"
+            f"<td><span class='badge {p.confidence_label}'>{p.confidence_label}</span></td>"
+            f"<td class='num'>open {p.est_open_move_pct:+.1f}%<br>close {p.est_close_move_pct:+.1f}%</td>"
             f"<td>{p.catalyst}</td>"
             f"<td class='num'>{p.news_score:+.2f}</td>"
             f"<td class='num'>{p.momentum_score:+.2f}</td>"
@@ -59,7 +67,12 @@ def render(picks: list[RankedPick], ledger: Ledger, out_path: str) -> None:
             for i, p in enumerate(picks, 1)
         )
         today_html = (
-            "<table><tr><th>#</th><th>Ticker / thesis</th><th>Score</th><th>Catalyst</th>"
+            "<div class='hint'>Est. open/close = the LLM's own speculative point-estimate move, "
+            "grounded in momentum/RSI/volatility plus the news below — a suggestion, not a prediction "
+            "service. Confidence fuses the LLM's self-rated certainty with whether news and momentum "
+            "actually agree and how calm the name is.</div>"
+            "<table><tr><th>#</th><th>Ticker / thesis</th><th>Score</th><th>Confidence</th>"
+            "<th>Est. open / close</th><th>Catalyst</th>"
             "<th>News</th><th>Mom</th><th>Gap pen.</th><th>Main risk</th></tr>"
             f"{rows}</table>"
         )

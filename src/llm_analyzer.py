@@ -26,14 +26,25 @@ Schema per element:
   "sentiment": -1.0 to 1.0,          // direction of the news for the stock
   "materiality": 0.0 to 1.0,         // earnings/guidance/M&A/regulatory high; fluff PR low
   "priced_in": 0.0 to 1.0,           // 1.0 = overnight gap already reflects the news fully
+  "confidence": 0.0 to 1.0,          // how sure you are of this whole read (news + numbers together)
+  "est_open_move_pct": -10.0 to 10.0,  // your speculative point-estimate gap at next session open vs last close
+  "est_close_move_pct": -10.0 to 10.0, // your speculative point-estimate cumulative move by next session close
   "catalyst": "earnings_beat|guidance|mna|regulatory|macro|analyst|product|other",
   "rationale": "one sentence, max 25 words",
   "risk": "one sentence on the main way this thesis fails, max 20 words"
 }
 
 Rules:
+- "ticker" must be copied EXACTLY as it appears in the UNIVERSE block below, including any
+  exchange suffix (e.g. "TTE.PA", not "TTE"; "SAP.DE", not "SAP"). A ticker that doesn't
+  exactly match the universe is silently dropped, wasting a real signal.
 - Only include tickers with materiality >= 0.3. Omitting all tickers is a valid answer: return [].
 - Judge priced_in using the overnight gap provided: big gap in the news direction = mostly priced in.
+- est_open_move_pct / est_close_move_pct are your own speculative guesses, grounded in the momentum/RSI/
+  volatility context given plus the news — not a prediction service, not investment advice. Use 0 if you
+  have no informed view beyond noise.
+- confidence should be low (<0.3) when headlines are thin, stale, or contradictory, and high (>0.7) only
+  when materiality and the quant context clearly agree.
 - Never invent news. If headlines don't clearly concern a ticker, leave it out.
 - Be conservative: generic market commentary is materiality ~0.1 and should be excluded."""
 

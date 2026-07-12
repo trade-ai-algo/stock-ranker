@@ -53,8 +53,12 @@ news:
   lookback_hours: 20         # only news from the last N hours
 
 llm:
+  # claude-sonnet-5: best fit for this job — strong structured-JSON extraction and
+  # numeric/probabilistic reasoning over headlines + quant context, at a few cents/run.
+  # Upgrade path: claude-opus-4-8 for deeper multi-headline reasoning if the ledger
+  # shows Sonnet's materiality/confidence calls are the bottleneck — costs more per run.
   model: claude-sonnet-5
-  max_tokens: 3000
+  max_tokens: 4000
   # API key read from env var ANTHROPIC_API_KEY — never hardcode it here.
 
 features:
@@ -72,6 +76,8 @@ ranking:
     mean_reversion: 0.15     # short-term overextension penalty
     gap_penalty: 0.20        # penalize news already priced in at the open
   allow_no_pick: true        # ranker may output an empty list on weak days
+  min_score: 0.05            # bar a pick must clear to surface; lower = more suggestions,
+                              # each still tagged with its own confidence rating
 
 ledger:
   db_path: data/ledger.sqlite
