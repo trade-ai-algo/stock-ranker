@@ -6,3 +6,4 @@ date,rank,ticker,score,catalyst,rationale,risk,close,confidence_label,confidence
 2026-07-12,1,QQQ,0.0645,macro,Geopolitical escalation adds risk-off pressure to tech-heavy indices already showing negative gap.,Tech strength and AI momentum outweigh macro risk-off sentiment.,725.51,Low,0.225,-0.4,-0.5
 2026-07-12,1,QQQ,0.0895,macro,Tech-heavy index could see mild risk-off drag from escalating Mideast conflict headlines.,AI-driven momentum in mega-cap tech may overwhelm geopolitical risk-off flows.,725.51,Low,0.25,-0.3,-0.4
 2026-07-12,1,QQQ,0.1045,macro,Risk-off sentiment from Iran conflict could pressure growth-heavy tech index further.,Tech resilience or unrelated positive earnings news could offset macro risk-off drag.,725.51,Low,0.25,-0.6,-0.4
+2026-07-12,1,QQQ,0.0515,macro,Geopolitical escalation adds risk-off tone that could pressure high-beta tech-heavy index.,Tech strength (AI trade) could override macro risk-off sentiment.,725.51,Low,0.25,-0.5,-0.4
