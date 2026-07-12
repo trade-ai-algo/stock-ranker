@@ -1,10 +1,13 @@
 # Daily Ranker
 
-Self-hosted research assistant: reads overnight financial news, pulls
-historical price data, asks Claude to judge news sentiment/materiality,
-fuses that with quantitative features, and outputs a ranked daily list of
-EU + US stocks/ETFs — plus a ledger that scores every past pick against
-a benchmark so you know whether the system is actually any good.
+Self-hosted research assistant: reads overnight news, pulls historical price
+data, asks Claude to judge sentiment/materiality, fuses that with
+quantitative features, and outputs a ranked daily list — plus a ledger that
+scores every past pick against a benchmark so you know whether the system is
+actually any good. Runs two independent "books" through the identical
+pipeline, each its own tab on the dashboard: **Stocks & ETFs** (EU + US) and
+**Crypto**. Add more asset classes by adding another entry under
+`config.yaml → books`.
 
 **This produces research suggestions, not investment advice, and it does
 not trade.** The ledger exists precisely because the picks are hypotheses
@@ -53,7 +56,11 @@ export ANTHROPIC_API_KEY=sk-ant-...
 python main.py
 ```
 
-Outputs land in `data/`: `dashboard.html`, `rankings.csv`, `ledger.sqlite`.
+Outputs land in `data/`: `index.html` (the dashboard, tabbed per book), and
+per-book `rankings*.csv` / `ledger*.sqlite` (e.g. `ledger.sqlite` for stocks,
+`ledger_crypto.sqlite` for crypto). Every column on the dashboard is
+explained in the "What do these columns mean?" panel at the bottom of the
+page.
 
 ## Serving the dashboard
 
@@ -64,10 +71,10 @@ cd data && python -m http.server 8080     # quick and dirty
 # or point nginx at /opt/daily-ranker/data/dashboard.html
 ```
 
-## Cron (Berlin time; EU pre-open run + evening evaluation)
+## Cron (Berlin time; morning run + evening evaluation)
 
 ```cron
-30 7  * * 1-5  cd /opt/daily-ranker && ./venv/bin/python main.py >> data/run.log 2>&1
+0  9  * * 1-5  cd /opt/daily-ranker && ./venv/bin/python main.py >> data/run.log 2>&1
 0  22 * * 1-5  cd /opt/daily-ranker && ./venv/bin/python main.py --eval >> data/run.log 2>&1
 ```
 

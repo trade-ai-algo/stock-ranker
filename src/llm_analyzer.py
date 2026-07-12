@@ -14,29 +14,28 @@ import anthropic
 from .market_data import TickerFeatures
 from .news_fetcher import Headline
 
-SYSTEM_PROMPT = """You are a sell-side news analyst. You will receive (1) recent \
-financial headlines and (2) per-ticker quantitative context including the \
-overnight gap. For each ticker in the universe that is materially affected by \
-the news, output a JSON object. Respond with ONLY a JSON array, no prose, no \
-markdown fences.
+SYSTEM_PROMPT_TEMPLATE = """You are a sell-side analyst covering {asset_label}. You will receive (1) \
+recent headlines and (2) per-ticker quantitative context including the overnight gap. For each ticker \
+in the universe that is materially affected by the news, output a JSON object. Respond with ONLY a \
+JSON array, no prose, no markdown fences.
 
 Schema per element:
-{
+{{
   "ticker": "AAPL",
-  "sentiment": -1.0 to 1.0,          // direction of the news for the stock
-  "materiality": 0.0 to 1.0,         // earnings/guidance/M&A/regulatory high; fluff PR low
+  "sentiment": -1.0 to 1.0,          // direction of the news for the asset
+  "materiality": 0.0 to 1.0,         // major fundamental catalysts (see list below) high; fluff/generic commentary low
   "priced_in": 0.0 to 1.0,           // 1.0 = overnight gap already reflects the news fully
   "confidence": 0.0 to 1.0,          // how sure you are of this whole read (news + numbers together)
   "est_open_move_pct": -10.0 to 10.0,  // your speculative point-estimate gap at next session open vs last close
   "est_close_move_pct": -10.0 to 10.0, // your speculative point-estimate cumulative move by next session close
-  "catalyst": "earnings_beat|guidance|mna|regulatory|macro|analyst|product|other",
+  "catalyst": "{catalyst_options}",
   "rationale": "one sentence, max 25 words",
   "risk": "one sentence on the main way this thesis fails, max 20 words"
-}
+}}
 
 Rules:
 - "ticker" must be copied EXACTLY as it appears in the UNIVERSE block below, including any
-  exchange suffix (e.g. "TTE.PA", not "TTE"; "SAP.DE", not "SAP"). A ticker that doesn't
+  exchange/quote suffix (e.g. "TTE.PA", not "TTE"; "BTC-USD", not "BTC"). A ticker that doesn't
   exactly match the universe is silently dropped, wasting a real signal.
 - Only include tickers with materiality >= 0.3. Omitting all tickers is a valid answer: return [].
 - Judge priced_in using the overnight gap provided: big gap in the news direction = mostly priced in.
@@ -46,7 +45,7 @@ Rules:
 - confidence should be low (<0.3) when headlines are thin, stale, or contradictory, and high (>0.7) only
   when materiality and the quant context clearly agree.
 - Never invent news. If headlines don't clearly concern a ticker, leave it out.
-- Be conservative: generic market commentary is materiality ~0.1 and should be excluded."""
+- Be conservative: generic commentary is materiality ~0.1 and should be excluded."""
 
 
 def analyze_news(
@@ -54,12 +53,15 @@ def analyze_news(
     features: dict[str, TickerFeatures],
     model: str,
     max_tokens: int,
+    asset_label: str = "equities and ETFs",
+    catalyst_options: str = "earnings_beat|guidance|mna|regulatory|macro|analyst|product|other",
 ) -> list[dict]:
     api_key = os.environ.get("ANTHROPIC_API_KEY")
     if not api_key:
         raise RuntimeError("Set ANTHROPIC_API_KEY environment variable.")
 
     client = anthropic.Anthropic(api_key=api_key)
+    system_prompt = SYSTEM_PROMPT_TEMPLATE.format(asset_label=asset_label, catalyst_options=catalyst_options)
 
     news_block = "\n".join(
         f"- [{h.source} | {h.published:%Y-%m-%d %H:%M}Z] {h.title} :: {h.summary}"
@@ -79,7 +81,7 @@ def analyze_news(
     resp = client.messages.create(
         model=model,
         max_tokens=max_tokens,
-        system=SYSTEM_PROMPT,
+        system=system_prompt,
         messages=[{"role": "user", "content": user_msg}],
     )
     text = "".join(b.text for b in resp.content if b.type == "text").strip()

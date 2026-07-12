@@ -1,12 +1,15 @@
 """Daily Ranker — main entrypoint.
 
 Usage:
-    python main.py            # full run: news -> quant -> LLM -> rank -> log -> dashboard
+    python main.py            # full run: news -> quant -> LLM -> rank -> log -> dashboard, per book
     python main.py --eval     # only evaluate matured past picks + refresh dashboard
 
-Cron example (07:30 Berlin time, before EU open; US premarket news included):
-    30 7 * * 1-5  cd /opt/daily-ranker && /usr/bin/python3 main.py >> data/run.log 2>&1
-    0  22 * * 1-5 cd /opt/daily-ranker && /usr/bin/python3 main.py --eval >> data/run.log 2>&1
+Runs the identical pipeline once per "book" defined in config.yaml (stocks,
+crypto, ...) and renders every book into its own tab on one dashboard page.
+
+Cron example (07:00 UTC = 9AM Berlin time, before EU open; US premarket news included):
+    0  7  * * 1-5  cd /opt/daily-ranker && /usr/bin/python3 main.py >> data/run.log 2>&1
+    0  20 * * 1-5  cd /opt/daily-ranker && /usr/bin/python3 main.py --eval >> data/run.log 2>&1
 """
 from __future__ import annotations
 
@@ -30,29 +33,25 @@ def load_config() -> dict:
         return yaml.safe_load(f)
 
 
-def main() -> None:
-    cfg = load_config()
-    ledger = Ledger(cfg["ledger"]["db_path"])
+def run_book(name: str, book_cfg: dict, cfg: dict, eval_only: bool) -> dict:
+    ledger = Ledger(book_cfg["ledger"]["db_path"])
 
-    eval_only = "--eval" in sys.argv
-
-    # Always evaluate matured picks first — cheap and keeps the ledger fresh.
-    n = ledger.evaluate_due(cfg["ledger"]["eval_horizons_days"], cfg["benchmark"])
-    print(f"[eval] evaluated {n} matured picks")
+    n = ledger.evaluate_due(book_cfg["ledger"]["eval_horizons_days"], book_cfg["benchmark"])
+    print(f"[{name}][eval] evaluated {n} matured picks")
 
     picks = []
     if not eval_only:
-        tickers = cfg["universe"]["stocks"] + cfg["universe"]["etfs"]
+        tickers = [t for group in book_cfg["universe"].values() for t in group]
 
-        print("[1/4] fetching news…")
+        print(f"[{name} 1/4] fetching news…")
         headlines = fetch_headlines(
-            cfg["news"]["rss_feeds"],
-            cfg["news"]["lookback_hours"],
-            cfg["news"]["max_headlines"],
+            book_cfg["news"]["rss_feeds"],
+            book_cfg["news"]["lookback_hours"],
+            book_cfg["news"]["max_headlines"],
         )
         print(f"      {len(headlines)} headlines")
 
-        print("[2/4] fetching market data + features…")
+        print(f"[{name} 2/4] fetching market data + features…")
         features = fetch_features(
             tickers,
             cfg["features"]["history_days"],
@@ -62,13 +61,18 @@ def main() -> None:
         )
         print(f"      {len(features)} tickers with features")
 
-        print("[3/4] LLM news analysis…")
+        print(f"[{name} 3/4] LLM news analysis…")
         llm_scores = analyze_news(
-            headlines, features, cfg["llm"]["model"], cfg["llm"]["max_tokens"]
+            headlines,
+            features,
+            cfg["llm"]["model"],
+            cfg["llm"]["max_tokens"],
+            book_cfg["asset_label"],
+            book_cfg["catalyst_options"],
         )
         print(f"      {len(llm_scores)} tickers flagged by news")
 
-        print("[4/4] ranking…")
+        print(f"[{name} 4/4] ranking…")
         picks = rank(
             llm_scores,
             features,
@@ -80,7 +84,7 @@ def main() -> None:
 
         if picks:
             ledger.log_picks(date.today(), picks)
-            _append_csv(cfg["output"]["csv_path"], picks)
+            _append_csv(book_cfg["output"]["csv_path"], picks)
             for i, p in enumerate(picks, 1):
                 print(
                     f"  {i}. {p.ticker:8s} score={p.total_score:+.3f} conf={p.confidence_label:6s} "
@@ -88,9 +92,18 @@ def main() -> None:
                     f"[{p.catalyst}] {p.rationale}"
                 )
         else:
-            print("  no compelling picks today (allow_no_pick=true) — sitting out")
+            print(f"  [{name}] no compelling picks today (allow_no_pick=true) — sitting out")
 
-    render(picks, ledger, "data/index.html")
+    return {"label": book_cfg["label"], "picks": picks, "ledger": ledger}
+
+
+def main() -> None:
+    cfg = load_config()
+    eval_only = "--eval" in sys.argv
+
+    books = {name: run_book(name, book_cfg, cfg, eval_only) for name, book_cfg in cfg["books"].items()}
+
+    render(books, "data/index.html")
     print("[done] dashboard written to data/index.html")
 
 

@@ -2,3 +2,4 @@ date,rank,ticker,score,catalyst,rationale,risk,close,confidence_label,confidence
 2026-07-12,1,QQQ,0.0645,macro,Geopolitical risk-off could weigh on high-beta tech amid Iran conflict escalation.,Tech resilience and AI momentum could offset broader macro risk-off.,725.51,Low,0.225,-0.4,-0.5
 2026-07-12,1,QQQ,0.0915,macro,Risk-off sentiment from Middle East conflict could pressure high-beta tech names.,AI-driven momentum in tech could override macro risk-off concerns.,725.51,Low,0.25,-0.7,-0.5
 2026-07-12,2,IWM,0.0734,macro,Small caps typically underperform during geopolitical risk-off episodes and oil price spikes.,Domestic-focused small caps may be less sensitive to Middle East conflict than expected.,295.99,Low,0.294,-0.8,-0.5
+2026-07-12,1,QQQ,0.0715,macro,Risk-off sentiment from Iran conflict could pressure high-beta tech/growth names.,AI-driven momentum may override macro risk-off concerns.,725.51,Low,0.25,-0.6,-0.9

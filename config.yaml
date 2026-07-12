@@ -1,56 +1,8 @@
 # ── Daily Ranker configuration ──────────────────────────────────────────
-# Universe: liquid US large caps + ETFs. Swap for DAX tickers if preferred
-# (yfinance supports e.g. SAP.DE, SIE.DE, EXS1.DE).
-
-universe:
-  stocks:
-    # ── US large caps ──
-    - AAPL
-    - MSFT
-    - NVDA
-    - AMZN
-    - GOOGL
-    - META
-    - TSLA
-    - JPM
-    - XOM
-    - UNH
-    - AVGO
-    - LLY
-    # ── EU large caps (Xetra / Euronext / SIX via yfinance suffixes) ──
-    - SAP.DE       # SAP
-    - SIE.DE       # Siemens
-    - ALV.DE       # Allianz
-    - DTE.DE       # Deutsche Telekom
-    - AIR.PA       # Airbus
-    - MC.PA        # LVMH
-    - TTE.PA       # TotalEnergies
-    - ASML.AS      # ASML
-    - NESN.SW      # Nestlé
-    - NOVN.SW      # Novartis
-  etfs:
-    # ── US ──
-    - SPY      # S&P 500
-    - QQQ      # Nasdaq 100
-    - IWM      # Russell 2000
-    - TLT      # Long treasuries
-    - GLD      # Gold
-    # ── EU (UCITS, Xetra-listed) ──
-    - EXS1.DE  # iShares Core DAX
-    - EXW1.DE  # iShares EURO STOXX 50 UCITS ETF (Xetra)
-    - IS3N.DE  # iShares MSCI EM IMI
-
-# Benchmark used by the ledger to judge whether picks add value
-benchmark: SPY
-
-news:
-  # Free RSS feeds. Add/remove as you like.
-  rss_feeds:
-    - https://feeds.content.dowjones.io/public/rss/mw_topstories
-    - https://www.cnbc.com/id/100003114/device/rss/rss.html
-    - https://feeds.a.dj.com/rss/RSSMarketsMain.xml
-  max_headlines: 60          # cap sent to the LLM per run
-  lookback_hours: 20         # only news from the last N hours
+# Two independent "books" run through the identical pipeline (news -> quant
+# -> LLM -> rank -> ledger -> dashboard tab): stocks and crypto. Add more by
+# adding another entry under `books` — everything else (llm/ranking/features
+# settings below) is shared.
 
 llm:
   # claude-sonnet-5: best fit for this job — strong structured-JSON extraction and
@@ -60,12 +12,6 @@ llm:
   model: claude-sonnet-5
   max_tokens: 4000
   # API key read from env var ANTHROPIC_API_KEY — never hardcode it here.
-
-features:
-  history_days: 200          # daily bars pulled per ticker
-  momentum_windows: [5, 20, 60]
-  vol_window: 20
-  rsi_window: 14
 
 ranking:
   top_n: 5
@@ -79,12 +25,103 @@ ranking:
   min_score: 0.05            # bar a pick must clear to surface; lower = more suggestions,
                               # each still tagged with its own confidence rating
 
-ledger:
-  db_path: data/ledger.sqlite
-  eval_horizons_days: [1, 5]
+features:
+  history_days: 200          # daily bars pulled per ticker
+  momentum_windows: [5, 20, 60]
+  vol_window: 20
+  rsi_window: 14
+
+books:
+  stocks:
+    label: "Stocks & ETFs"
+    asset_label: "equities and ETFs"
+    catalyst_options: "earnings_beat|guidance|mna|regulatory|macro|analyst|product|other"
+    universe:
+      stocks:
+        # ── US large caps ──
+        - AAPL
+        - MSFT
+        - NVDA
+        - AMZN
+        - GOOGL
+        - META
+        - TSLA
+        - JPM
+        - XOM
+        - UNH
+        - AVGO
+        - LLY
+        # ── EU large caps (Xetra / Euronext / SIX via yfinance suffixes) ──
+        - SAP.DE       # SAP
+        - SIE.DE       # Siemens
+        - ALV.DE       # Allianz
+        - DTE.DE       # Deutsche Telekom
+        - AIR.PA       # Airbus
+        - MC.PA        # LVMH
+        - TTE.PA       # TotalEnergies
+        - ASML.AS      # ASML
+        - NESN.SW      # Nestlé
+        - NOVN.SW      # Novartis
+      etfs:
+        # ── US ──
+        - SPY      # S&P 500
+        - QQQ      # Nasdaq 100
+        - IWM      # Russell 2000
+        - TLT      # Long treasuries
+        - GLD      # Gold
+        # ── EU (UCITS, Xetra-listed) ──
+        - EXS1.DE  # iShares Core DAX
+        - EXW1.DE  # iShares EURO STOXX 50 UCITS ETF (Xetra)
+        - IS3N.DE  # iShares MSCI EM IMI
+    benchmark: SPY
+    news:
+      rss_feeds:
+        - https://feeds.content.dowjones.io/public/rss/mw_topstories
+        - https://www.cnbc.com/id/100003114/device/rss/rss.html
+        - https://feeds.a.dj.com/rss/RSSMarketsMain.xml
+      max_headlines: 60      # cap sent to the LLM per run
+      lookback_hours: 20     # only news from the last N hours
+    ledger:
+      db_path: data/ledger.sqlite
+      eval_horizons_days: [1, 5]
+    output:
+      csv_path: data/rankings.csv
+
+  crypto:
+    label: "Crypto"
+    asset_label: "cryptocurrencies"
+    catalyst_options: "protocol_upgrade|hack_exploit|regulatory|listing_delisting|macro|whale_activity|adoption|other"
+    universe:
+      coins:
+        - BTC-USD
+        - ETH-USD
+        - SOL-USD
+        - BNB-USD
+        - XRP-USD
+        - ADA-USD
+        - DOGE-USD
+        - AVAX-USD
+        - LINK-USD
+        - DOT-USD
+        - LTC-USD
+      etfs:
+        - IBIT     # iShares Bitcoin Trust
+        - ETHA     # iShares Ethereum Trust
+    benchmark: BTC-USD
+    news:
+      rss_feeds:
+        - https://www.coindesk.com/arc/outboundfeeds/rss
+        - https://cointelegraph.com/rss
+        - https://cryptoslate.com/feed/
+      max_headlines: 60
+      lookback_hours: 20
+    ledger:
+      db_path: data/ledger_crypto.sqlite
+      eval_horizons_days: [1, 5]
+    output:
+      csv_path: data/rankings_crypto.csv
 
 output:
-  csv_path: data/rankings.csv
   telegram:
     enabled: false
     # If enabled: set TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID env vars.
