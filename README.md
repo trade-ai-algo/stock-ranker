@@ -17,15 +17,16 @@ until proven otherwise.
 ## Architecture
 
 ```
-RSS news ──► news_fetcher ──┐
-                            ├──► llm_analyzer (Claude: sentiment,
-yfinance ──► market_data ───┘     materiality, priced-in?)
+RSS news ──────────────► news_fetcher ──┐
+web search (Claude) ──► ticker_discovery ┤
+                                          ├──► llm_analyzer (Claude: sentiment,
+yfinance ──────────────► market_data ────┘     materiality, priced-in?)
                  │                        │
                  └────────► ranker ◄──────┘   deterministic fusion
                               │
               ┌───────────────┼──────────────┐
               ▼               ▼              ▼
-        ledger.sqlite   rankings.csv   dashboard.html
+        ledger.sqlite   rankings.csv   dashboard/index.html
         (scorekeeping)                 (serve statically)
 ```
 
@@ -53,6 +54,17 @@ Design principles baked in:
   the pool. It shows the LLM's own close-move guess in euros next to the
   ticker's *actual* historical daily volatility in euros — on purpose, so
   the point estimate is visibly dwarfed by real day-to-day noise.
+- **Discovery widens the net, never lowers the bar.** `ticker_discovery.py`
+  uses Claude's web-search tool to find tickers — including recent IPOs —
+  beyond the fixed watchlist, surfaced in their own "Trending" group. They
+  go through the exact same liquidity floor, LLM scoring, and `min_score`
+  filter as every other ticker; a bad or noisy search just means fewer
+  candidates survive, not a worse pick getting through.
+- **IPO tagging is computed from real trading history, not guessed by the
+  LLM.** A ticker is tagged "IPO" if it has less than `ipo_lookback_days`
+  of actual price history — deterministic and can't be prompted into being
+  wrong. Names with under `min_history_days` of history (too new to say
+  anything statistically meaningful) are left out entirely, on any day.
 
 ## Setup
 
@@ -87,7 +99,10 @@ cd data && python -m http.server 8080     # quick and dirty
 
 ## Cost
 
-- Claude API: roughly a few cents per run (one Sonnet call with ~60 headlines).
+- Claude API: roughly a few cents per run for the news-analysis call
+  (~60-70 headlines). Web-search discovery adds a small extra cost per
+  search, capped at `discovery.max_searches` (default 4) per book per run —
+  turn a book's `discovery.enabled` off to skip it entirely.
 - Data: yfinance + RSS, free. Delayed data — fine for ranking, never for execution.
 - Hosting: any €5/month VPS, a Raspberry Pi, or GitHub Actions on a schedule.
 
@@ -106,6 +121,12 @@ cd data && python -m http.server 8080     # quick and dirty
 - `config.yaml → simulation` — tune the confidence → stake-% tiers or the
   deployment ceiling; both only change the illustrative €-example, never
   the ranking itself.
+- `config.yaml → books.<book>.discovery` — `min_adv_musd` is the liquidity
+  floor for web-discovered tickers (raise it if illiquid/manipulation-prone
+  names keep showing up); `max_searches` bounds cost per run.
+- `features.min_history_days` / `features.ipo_lookback_days` — how little
+  history is enough to include a ticker at all, vs. how little is enough to
+  tag it "IPO". Both apply to every ticker, not just discovered ones.
 
 ## Honest limitations
 
@@ -118,3 +139,8 @@ cd data && python -m http.server 8080     # quick and dirty
   reasonable but imperfect snapshot.
 - Survivorship: judge the system on the ledger's *excess* return vs the
   benchmark, not raw returns — a bull market makes everything look smart.
+- Web search can return wrong or hallucinated tickers, or nothing useful on
+  a given day; a failed/empty search degrades to just the fixed watchlist,
+  it never crashes the run. The liquidity floor helps but doesn't eliminate
+  the risk of a discovered name being a thinly-traded or manipulated stock —
+  treat "Trending" picks with at least as much skepticism as the rest.

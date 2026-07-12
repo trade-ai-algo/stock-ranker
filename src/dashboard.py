@@ -57,6 +57,7 @@ th { font-size: 12px; color: var(--muted); font-weight: 600; }
 .badge.High { background: #e3f3ea; color: var(--up); }
 .badge.Medium { background: #fbf1da; color: #8a6d1d; }
 .badge.Low { background: #f7e6e3; color: var(--down); }
+.badge.ipo { background: #eae6fb; color: #4c3d99; margin-left: 6px; }
 .tabs { display: flex; gap: 6px; border-bottom: 1px solid var(--line); margin: 18px 0 4px; }
 .tab-btn {
   font: 600 13px/1 Georgia, serif; letter-spacing: .04em; text-transform: uppercase;
@@ -95,11 +96,19 @@ GLOSSARY = """
 <summary>New here? Read this first — what everything on this page means</summary>
 <div>
 <b>What is this page?</b>
-<p style="color:var(--muted); font-size:14px; margin-top:4px;">Every day, an AI reads financial news
-and looks at price charts, then a simple, fixed formula (not the AI) turns that into a short list of
-stocks, ETFs, or cryptocurrencies that might be worth a look. Nothing here is bought or sold
-automatically — it's just a suggestion, and it's tracked over time so you can see whether it's actually
-any good.</p>
+<p style="color:var(--muted); font-size:14px; margin-top:4px;">Every day, an AI reads financial news and
+searches the web, then a simple, fixed formula (not the AI) turns that into a short list of stocks,
+ETFs, or cryptocurrencies that might be worth a look. Nothing here is bought or sold automatically —
+it's just a suggestion, and it's tracked over time so you can see whether it's actually any good.</p>
+
+<b>Where do the picks come from?</b>
+<p style="color:var(--muted); font-size:14px; margin-top:4px;">Two places, shown as separate groups when
+there's more than one: a fixed watchlist of well-known names (e.g. "US" / "EU"), and a "Trending" group
+found fresh each day by searching the web for whatever's actually in the news right now — including
+recent IPOs, which get a purple "IPO" tag next to the ticker. Every pick, from either source, has to
+clear the exact same bar before it's shown — Trending isn't a lower-quality shortcut, it's a wider net.
+A brand-new IPO with only a few days of trading is left out entirely: there just isn't enough price
+history yet to say anything meaningful about it.</p>
 
 <b>Today's picks</b>
 <dl>
@@ -158,9 +167,10 @@ def render(books: dict[str, dict], capital_eur: float, out_path: str) -> None:
 <meta name='viewport' content='width=device-width,initial-scale=1'>
 <title>Daily Ranker</title><style>{CSS}</style></head><body>
 <h1>Daily Ranker</h1>
-<div class='sub'>Every day, an AI reads the news and looks at price charts to suggest a few stocks,
-ETFs, or cryptocurrencies that might be worth a look — and shows how sure it is. This is not financial
-advice, and nothing here buys or sells anything automatically.</div>
+<div class='sub'>Every day, an AI reads the news and searches the web for what's actively being talked
+about — including recent IPOs — to suggest a few stocks, ETFs, or cryptocurrencies that might be worth
+a look, and shows how sure it is. This is not financial advice, and nothing here buys or sells anything
+automatically.</div>
 <div class='sub2'>Last updated {now}</div>
 
 <div class='tabs'>{tab_buttons}</div>
@@ -239,23 +249,14 @@ def _today_ranking_html(groups: dict[str, list[RankedPick]]) -> str:
 
     for market, picks in groups.items():
         if show_subheadings:
-            parts.append(f"<h3 class='market'>{market}</h3>")
+            subtitle = " — found via web search, not the fixed watchlist" if market == "Trending" else ""
+            parts.append(f"<h3 class='market'>{market}{subtitle}</h3>")
         if not picks:
             parts.append(f"<div class='empty'>Nothing convincing in {market} today.</div>")
             continue
 
         max_score = max((abs(p.total_score) for p in picks), default=1) or 1
-        rows = "".join(
-            f"<tr><td class='num'>{i}</td><td><b>{p.ticker}</b><br>"
-            f"<span class='risk'>{p.rationale}</span></td>"
-            f"<td><div class='bar'><i style='width:{abs(p.total_score) / max_score * 100:.0f}%'></i></div>"
-            f"<span class='num'>{p.total_score:+.3f}</span></td>"
-            f"<td><span class='badge {p.confidence_label}'>{p.confidence_label}</span></td>"
-            f"<td class='num'>tomorrow open {p.est_open_move_pct:+.1f}%<br>tomorrow close {p.est_close_move_pct:+.1f}%</td>"
-            f"<td>{_catalyst_label(p.catalyst)}</td>"
-            f"<td class='risk'>{p.risk}</td></tr>"
-            for i, p in enumerate(picks, 1)
-        )
+        rows = "".join(_pick_row(i, p, max_score) for i, p in enumerate(picks, 1))
         parts.append(
             "<table><tr><th>#</th><th>Ticker / why it's here</th><th>Strength</th><th>How sure is the AI?</th>"
             "<th>AI's guess</th><th>Why</th><th>What could go wrong</th></tr>"
@@ -263,6 +264,20 @@ def _today_ranking_html(groups: dict[str, list[RankedPick]]) -> str:
         )
 
     return "".join(parts)
+
+
+def _pick_row(i: int, p: RankedPick, max_score: float) -> str:
+    ipo_badge = " <span class='badge ipo'>IPO</span>" if p.is_ipo else ""
+    return (
+        f"<tr><td class='num'>{i}</td><td><b>{p.ticker}</b>{ipo_badge}<br>"
+        f"<span class='risk'>{p.rationale}</span></td>"
+        f"<td><div class='bar'><i style='width:{abs(p.total_score) / max_score * 100:.0f}%'></i></div>"
+        f"<span class='num'>{p.total_score:+.3f}</span></td>"
+        f"<td><span class='badge {p.confidence_label}'>{p.confidence_label}</span></td>"
+        f"<td class='num'>tomorrow open {p.est_open_move_pct:+.1f}%<br>tomorrow close {p.est_close_move_pct:+.1f}%</td>"
+        f"<td>{_catalyst_label(p.catalyst)}</td>"
+        f"<td class='risk'>{p.risk}</td></tr>"
+    )
 
 
 def _stake_html(stake_examples: list[StakeExample], summary: dict, capital_eur: float) -> str:

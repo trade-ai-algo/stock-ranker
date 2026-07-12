@@ -29,6 +29,7 @@ class RankedPick:
     confidence_label: str
     est_open_move_pct: float
     est_close_move_pct: float
+    is_ipo: bool
     components: dict = field(default_factory=dict)
 
 
@@ -115,6 +116,7 @@ def rank_by_group(
                 confidence_label=confidence_label,
                 est_open_move_pct=round(float(np.clip(news.get("est_open_move_pct", 0.0), -10, 10)), 2),
                 est_close_move_pct=round(float(np.clip(news.get("est_close_move_pct", 0.0), -10, 10)), 2),
+                is_ipo=f.is_ipo,
                 components={
                     "rsi": f.rsi,
                     "mom20d_pct": mom20,

@@ -31,6 +31,10 @@ features:
   momentum_windows: [5, 20, 60]
   vol_window: 20
   rsi_window: 14
+  min_history_days: 25       # minimum real trading history to include a ticker at all —
+                              # low enough to admit recent IPOs; momentum windows longer
+                              # than the available history are simply omitted, not faked
+  ipo_lookback_days: 90      # tickers with less history than this are tagged "IPO"
 
 # Illustrative-only €-stake sizing example shown on the dashboard. A fixed,
 # transparent rule — not a trading system, doesn't feed back into ranking.
@@ -112,6 +116,11 @@ books:
         - https://feeds.a.dj.com/rss/RSSMarketsMain.xml
       max_headlines: 60      # cap sent to the LLM per run
       lookback_hours: 20     # only news from the last N hours
+    discovery:                 # search the web for tickers beyond the fixed universe above
+      enabled: true
+      max_searches: 4          # hard cap on web searches per run, bounds cost/latency
+      min_adv_musd: 2.0        # discovered tickers need at least this much average daily
+                                # $ volume to count — filters out illiquid/manipulation-prone names
     ledger:
       db_path: data/ledger.sqlite
       eval_horizons_days: [1, 5]
@@ -147,6 +156,10 @@ books:
         - https://cryptoslate.com/feed/
       max_headlines: 60
       lookback_hours: 20
+    discovery:
+      enabled: true
+      max_searches: 4
+      min_adv_musd: 1.0
     ledger:
       db_path: data/ledger_crypto.sqlite
       eval_horizons_days: [1, 5]

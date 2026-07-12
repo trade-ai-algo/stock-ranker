@@ -5,8 +5,9 @@ Usage:
     python main.py --eval     # only evaluate matured past picks + refresh dashboard
 
 Runs the identical pipeline once per "book" defined in config.yaml (stocks,
-crypto, ...), each book's universe nested by market (e.g. US / EU), and
-renders every book into its own tab on one dashboard page.
+crypto, ...), each book's universe nested by market (e.g. US / EU), plus a
+web-search-discovered "Trending" group per book, and renders every book into
+its own tab on one dashboard page.
 
 Cron example (07:00 UTC = 9AM Berlin time, before EU open; US premarket news included):
     0  7  * * 1-5  cd /opt/daily-ranker && /usr/bin/python3 main.py >> data/run.log 2>&1
@@ -16,7 +17,7 @@ from __future__ import annotations
 
 import csv
 import sys
-from datetime import date
+from datetime import date, datetime, timezone
 from pathlib import Path
 
 import yaml
@@ -25,9 +26,12 @@ from src.dashboard import render
 from src.ledger import Ledger
 from src.llm_analyzer import analyze_news
 from src.market_data import fetch_features
-from src.news_fetcher import fetch_headlines
+from src.news_fetcher import Headline, fetch_headlines
 from src.position_sizer import size_book
 from src.ranker import rank_by_group
+from src.ticker_discovery import discover_tickers
+
+TRENDING_GROUP = "Trending"
 
 
 def load_config() -> dict:
@@ -48,7 +52,7 @@ def run_book(name: str, book_cfg: dict, cfg: dict, eval_only: bool) -> dict:
             t: market for market, groups_ in book_cfg["universe"].items() for grp in groups_.values() for t in grp
         }
 
-        print(f"[{name} 1/4] fetching news…")
+        print(f"[{name} 1/5] fetching news…")
         headlines = fetch_headlines(
             book_cfg["news"]["rss_feeds"],
             book_cfg["news"]["lookback_hours"],
@@ -56,17 +60,46 @@ def run_book(name: str, book_cfg: dict, cfg: dict, eval_only: bool) -> dict:
         )
         print(f"      {len(headlines)} headlines")
 
-        print(f"[{name} 2/4] fetching market data + features…")
+        disc_cfg = book_cfg.get("discovery", {})
+        if disc_cfg.get("enabled"):
+            print(f"[{name} 2/5] searching the web for tickers beyond the watchlist…")
+            candidates = discover_tickers(cfg["llm"]["model"], book_cfg["asset_label"], disc_cfg.get("max_searches", 4))
+            new_tickers = [c["ticker"] for c in candidates if c["ticker"] not in ticker_market]
+            for t in new_tickers:
+                ticker_market[t] = TRENDING_GROUP
+            tickers += new_tickers
+            now = datetime.now(timezone.utc)
+            headlines += [
+                Headline(title=f"{c['ticker']}: {c.get('why', '')}", summary=c.get("why", ""),
+                         source="web search", published=now, link="")
+                for c in candidates if c["ticker"] in new_tickers
+            ]
+            print(f"      {len(new_tickers)} new tickers found")
+        else:
+            print(f"[{name} 2/5] web search disabled for this book, skipping")
+
+        print(f"[{name} 3/5] fetching market data + features…")
         features = fetch_features(
             tickers,
             cfg["features"]["history_days"],
             cfg["features"]["momentum_windows"],
             cfg["features"]["vol_window"],
             cfg["features"]["rsi_window"],
+            cfg["features"].get("min_history_days"),
+            cfg["features"].get("ipo_lookback_days", 90),
         )
+        min_adv = disc_cfg.get("min_adv_musd", 0.0)
+        illiquid = [
+            t for t, f in features.items()
+            if ticker_market.get(t) == TRENDING_GROUP and f.avg_dollar_volume_m < min_adv
+        ]
+        for t in illiquid:
+            del features[t]
+        if illiquid:
+            print(f"      dropped {len(illiquid)} discovered ticker(s) below the liquidity floor")
         print(f"      {len(features)} tickers with features")
 
-        print(f"[{name} 3/4] LLM news analysis…")
+        print(f"[{name} 4/5] LLM news analysis…")
         llm_scores = analyze_news(
             headlines,
             features,
@@ -77,7 +110,7 @@ def run_book(name: str, book_cfg: dict, cfg: dict, eval_only: bool) -> dict:
         )
         print(f"      {len(llm_scores)} tickers flagged by news")
 
-        print(f"[{name} 4/4] ranking…")
+        print(f"[{name} 5/5] ranking…")
         groups = rank_by_group(
             llm_scores,
             features,
@@ -97,8 +130,9 @@ def run_book(name: str, book_cfg: dict, cfg: dict, eval_only: bool) -> dict:
             _append_csv(book_cfg["output"]["csv_path"], picks)
             print(f"  [{market}]")
             for i, p in enumerate(picks, 1):
+                ipo_tag = " IPO" if p.is_ipo else ""
                 print(
-                    f"    {i}. {p.ticker:8s} score={p.total_score:+.3f} conf={p.confidence_label:6s} "
+                    f"    {i}. {p.ticker:8s}{ipo_tag} score={p.total_score:+.3f} conf={p.confidence_label:6s} "
                     f"est_open={p.est_open_move_pct:+.1f}% est_close={p.est_close_move_pct:+.1f}% "
                     f"[{p.catalyst}] {p.rationale}"
                 )
@@ -139,12 +173,12 @@ def _append_csv(path: str, picks) -> None:
         if not exists:
             w.writerow(
                 ["date", "rank", "ticker", "score", "catalyst", "rationale", "risk", "close",
-                 "confidence_label", "confidence_score", "est_open_move_pct", "est_close_move_pct"]
+                 "confidence_label", "confidence_score", "est_open_move_pct", "est_close_move_pct", "is_ipo"]
             )
         for i, p in enumerate(picks, 1):
             w.writerow(
                 [date.today(), i, p.ticker, p.total_score, p.catalyst, p.rationale, p.risk, p.last_close,
-                 p.confidence_label, p.confidence_score, p.est_open_move_pct, p.est_close_move_pct]
+                 p.confidence_label, p.confidence_score, p.est_open_move_pct, p.est_close_move_pct, p.is_ipo]
             )
 
 
